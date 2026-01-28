@@ -13,7 +13,7 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: converter-temperature.duckdns.org
-          username: ec2-username
+          username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /opt/apps/conversor-temperatura
