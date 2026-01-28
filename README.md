@@ -32,115 +32,182 @@ Foi utilizado o DuckDNS para apontar o domínio para o IP público da instância
 
 Exemplo:
 
-converter-temperature.duckdns.org → IP_DA_EC2
-
-
----
+seu-dominio.duckdns.org → IP_DA_EC2
 
 ## Estrutura do Projeto
 
 conversor-temperatura/
 ├── site/
-│ └── index.html
+│   └── index.html
 ├── nginx/
-│ └── conf.d/
-│ └── default.conf
+│   └── conf.d/
+│       └── default.conf
 ├── certbot/
 └── Dockerfile
 
 
----
+## Dockerfile
+
+Arquivo: `Dockerfile`
+
+    
+    FROM nginx:alpine
+    COPY site /usr/share/nginx/html
+
+
+## Estrutura de Diretórios
+
+`.
+├── Dockerfile
+├── site/
+├── nginx/
+│   └── conf.d/
+│       └── default.conf
+└── certbot/` 
+
 
 ## Dockerfile
 
-```dockerfile
-FROM nginx:alpine
-COPY site /usr/share/nginx/html
+Arquivo: `Dockerfile`
 
-Configuração do Nginx
+    FROM nginx:alpine
+    COPY site /usr/share/nginx/html
 
-Arquivo: nginx/conf.d/default.conf
+ 
+## Configuração do Nginx
 
-server {
-    listen 80;
-    server_name converter-temperature.duckdns.org www.converter-temperature.duckdns.org;
+Arquivo: `nginx/conf.d/default.conf`
 
-    location /.well-known/acme-challenge/ {
-        alias /var/www/certbot/.well-known/acme-challenge/;
-    }
+    `server { listen  80; server_name seu-dominio.duckdns.org www.seu-dominio.duckdns.org; # Diretório utilizado pelo Certbot para validação do domínio (ACME challenge)  location /.well-known/acme-challenge/ { alias /var/www/certbot/.well-known/acme-challenge/;
+        } # Redireciona todas as requisições HTTP para HTTPS  location / { return  301 https://$host$request_uri;
+        }
+        
+    } server { listen  443 ssl; server_name seu-dominio.duckdns.org www.seu-dominio.duckdns.org; ssl_certificate /etc/letsencrypt/live/seu-dominio.duckdns.org/fullchain.pem; ssl_certificate_key /etc/letsencrypt/live/seu-dominio.duckdns.org/privkey.pem; location / { root /usr/share/nginx/html; index index.html;
+        }
+    }`
+ 
+ 
 
-    location / {
-        return 301 https://$host$request_uri;
-    }
-}
+## Build da Imagem Docker
 
-server {
-    listen 443 ssl;
-    server_name converter-temperature.duckdns.org www.converter-temperature.duckdns.org;
+`docker build -t conversor-temp .` 
 
-    ssl_certificate /etc/letsencrypt/live/converter-temperature.duckdns.org/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/converter-temperature.duckdns.org/privkey.pem;
+----------
 
-    location / {
-        root /usr/share/nginx/html;
-        index index.html;
-    }
-}
+## Subindo o Nginx em Modo HTTP
 
-Build da Imagem
+Este passo é necessário inicialmente para permitir que o Certbot valide o domínio.
 
-docker build -t conversor-temp .
+`docker run -d \   --name nginx-http \   -p 80:80 \   -v $(pwd)/nginx/conf.d:/etc/nginx/conf.d \   -v $(pwd)/certbot:/var/www/certbot \   -v $(pwd)/site:/usr/share/nginx/html \   nginx:latest`
 
-Subindo o Nginx (HTTP)
+----------
 
-docker run -d \
-  --name nginx-http \
-  -p 80:80 \
-  -v $(pwd)/nginx/conf.d:/etc/nginx/conf.d \
-  -v $(pwd)/certbot:/var/www/certbot \
-  -v $(pwd)/site:/usr/share/nginx/html \
-  nginx:latest
+## Geração do Certificado SSL com Certbot
 
-Gerando o Certificado com Certbot
-
-docker run -it --rm \
+`docker run -it --rm \
   -v /etc/letsencrypt:/etc/letsencrypt \
   -v /var/lib/letsencrypt:/var/lib/letsencrypt \
   -v $(pwd)/certbot:/var/www/certbot \
   certbot/certbot certonly \
   --webroot \
   --webroot-path=/var/www/certbot \
-  -d converter-temperature.duckdns.org
+  -d seu-dominio.duckdns.org` 
 
-Subindo o Nginx com HTTPS
+----------
 
-docker stop nginx-http
-docker rm nginx-http
+### O que este comando faz:
 
-docker run -d \
-  --name nginx-https \
-  -p 80:80 \
-  -p 443:443 \
-  -v /etc/letsencrypt:/etc/letsencrypt \
-  -v $(pwd)/nginx/conf.d:/etc/nginx/conf.d \
-  -v $(pwd)/certbot:/var/www/certbot \
-  -v $(pwd)/site:/usr/share/nginx/html \
-  nginx:latest
+-   Utiliza a imagem oficial do Certbot
+    
+-   Armazena os certificados em `/etc/letsencrypt` no host
+    
+-   Usa o método `webroot` para comprovar a posse do domínio
+    
+-   O Let's Encrypt acessa:
+    
 
-Testes
+`http://seu-dominio/.well-known/acme-challenge/...` 
 
-curl -I http://converter-temperature.duckdns.org
-curl -I https://converter-temperature.duckdns.org
+-   Se a validação for bem-sucedida, o certificado é emitido
+    
 
-Renovação do Certificado
+----------
 
-Os certificados do Let's Encrypt expiram a cada 90 dias.
+## Subindo o Nginx com HTTPS
 
-docker run --rm \
+Primeiro, remova o container HTTP:
+
+`docker stop nginx-http
+docker rm nginx-http` 
+
+Em seguida, suba o Nginx com suporte a HTTPS:
+
+     docker run -d --name nginx-https -p 80:80 -p 443:443 -v /etc/letsencrypt:/etc/letsencrypt -v $(pwd)/nginx/conf.d:/etc/nginx/conf.d -v $(pwd)/certbot:/var/www/certbot -v $(pwd)/site:/usr/share/nginx/html nginx:latest
+
+
+----------
+
+## Testes de Funcionamento
+
+`curl -I http://seu-dominio.duckdns.org
+curl -I https://seu-dominio.duckdns.org` 
+
+Resultado esperado:
+
+-   HTTP deve responder com redirecionamento para HTTPS
+    
+-   HTTPS deve responder com status `200 OK`
+    
+
+----------
+
+## Sobre o Certificado SSL
+
+O certificado SSL é utilizado para:
+
+-   Criptografar a comunicação entre cliente e servidor
+    
+-   Garantir a autenticidade do servidor
+    
+-   Evitar alertas de segurança no navegador
+    
+
+O Let's Encrypt fornece certificados gratuitos, porém:
+
+-   Eles possuem validade de 90 dias
+    
+
+----------
+
+## Renovação do Certificado
+
+A renovação pode ser realizada com o comando:
+
+`docker run --rm \
   -v /etc/letsencrypt:/etc/letsencrypt \
   -v /var/lib/letsencrypt:/var/lib/letsencrypt \
   -v $(pwd)/certbot:/var/www/certbot \
-  certbot/certbot renew
+  certbot/certbot renew` 
 
-docker restart nginx-https
+Após a renovação, reinicie o Nginx:
 
+`docker restart nginx-https` 
+
+----------
+
+## Observações Importantes
+
+-   As portas 22, 80 e 443 devem estar liberadas no Security Group da AWS
+    
+-   O DNS deve estar corretamente apontando para o IP da instância EC2 antes da execução do Certbot
+    
+-   O Nginx deve estar em execução na porta 80 durante o processo de emissão do certificado
+    
+
+----------
+
+## Resultado Final
+
+A aplicação estará disponível em:
+
+`https://seu-dominio.duckdns.org`
