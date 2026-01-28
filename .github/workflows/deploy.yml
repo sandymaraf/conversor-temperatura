@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Deploy
 
 on:
   push:
@@ -7,18 +7,12 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
+
     steps:
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: converter-temperature.duckdns.org
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          timeout: 60s
-          command_timeout: 10m
-          script: |
-            cd /opt/apps/conversor-temperatura
-            git pull
-            docker build -t conversor-temperatura .
-            docker rm -f conversor-temperatura || true
-            docker run -d --name conversor-temperatura -p 80:80 conversor-temperatura
+      - name: Deploy app
+        run: |
+          cd /opt/apps/conversor-temperatura
+          git pull
+          docker build -t conversor-temperatura .
+          docker rm -f conversor-temperatura || true
+          docker run -d --name conversor-temperatura -p 80:80 conversor-temperatura
