@@ -1,4 +1,4 @@
-name:
+name: Deploy to EC2
 
 on:
   push:
@@ -15,9 +15,11 @@ jobs:
           host: converter-temperature.duckdns.org
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
+          timeout: 60s
+          command_timeout: 10m
           script: |
             cd /opt/apps/conversor-temperatura
             git pull
-            docker build -t conversor-temperatura
+            docker build -t conversor-temperatura .
             docker rm -f conversor-temperatura || true
-            docker run -d --name conversor-temperatura -p 8080:80 conversor-temperatura
+            docker run -d --name conversor-temperatura -p 80:80 conversor-temperatura
