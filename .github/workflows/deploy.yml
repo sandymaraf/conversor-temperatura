@@ -6,13 +6,12 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
-
+    runs-on: self-hosted
     steps:
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: 3.231.220.6
+          host: converter-temperature.duckdns.org
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           timeout: 60s
