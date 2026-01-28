@@ -15,4 +15,4 @@ jobs:
           git pull
           docker build -t conversor-temperatura .
           docker rm -f conversor-temperatura || true
-          docker run -d --name conversor-temperatura -p 80:80 conversor-temperatura
+          docker run -d --name conversor-temperatura -p 8080:80 conversor-temperatura
